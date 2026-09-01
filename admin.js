@@ -76,7 +76,7 @@
   function forceCheckIn(id){
     const item = items[id];
     if(!item) return;
-    itemsRef.child(id).update({ status:'in', holder:null, since: Date.now() }).then(() => {
+    itemsRef.child(id).update({ status:'in', holder:null, reason:null, since: Date.now() }).then(() => {
       logHistory(id, item.name, 'checkin', item.holder || 'Unknown');
       showToast('Checked in "' + item.name + '"');
     });
@@ -133,7 +133,7 @@
       const n = document.createElement('strong'); n.textContent = it.name;
       const m = document.createElement('span');
       m.style.fontSize = '12.5px'; m.style.color = 'var(--ink-soft)';
-      m.textContent = (it.holder || 'Unknown') + ' · since ' + fmtTime(it.since);
+      m.textContent = (it.holder || 'Unknown') + ' · since ' + fmtTime(it.since) + (it.reason ? ' · ' + it.reason : '');
       stack.appendChild(n); stack.appendChild(m);
       row.appendChild(stack);
 
@@ -446,7 +446,8 @@
       strongName.textContent = h.itemName || '(deleted item)';
       line.appendChild(strongName);
       line.appendChild(document.createTextNode(
-        ' — ' + (h.action === 'checkout' ? 'checked out by ' : 'checked in by ') + (h.person || 'Unknown')
+        ' — ' + (h.action === 'checkout' ? 'checked out by ' : 'checked in by ') + (h.person || 'Unknown') +
+        (h.reason ? ' — ' + h.reason : '')
       ));
       row.appendChild(line);
       const time = document.createElement('div');
