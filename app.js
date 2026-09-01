@@ -5,17 +5,11 @@
 
   let finished = false; // true once this page has shown a post-action "done" screen
   let scannerStream = null;
+  let photosEnabled = false;
 
   function firstName(fullName){
     if(!fullName) return '';
     return String(fullName).trim().split(/\s+/)[0];
-  }
-
-  function fmtTime(ts){
-    if(!ts) return '';
-    const d = new Date(ts);
-    return d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' at ' +
-           d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
   }
 
   function clear(el){ while(el.firstChild) el.removeChild(el.firstChild); }
@@ -184,7 +178,9 @@
       otherBtn.className = 'name-btn';
       otherBtn.textContent = 'Other';
       otherBtn.addEventListener('click', () => {
-        clear(grid);
+        grid.style.display = 'none'; // this is a CSS grid — build the "Other" form in its own block instead of inside it
+
+        const otherWrap = document.createElement('div');
 
         const otherField = document.createElement('div');
         otherField.className = 'field';
@@ -192,12 +188,12 @@
         otherInput.type = 'text';
         otherInput.placeholder = 'Type your name';
         otherField.appendChild(otherInput);
-        grid.appendChild(otherField);
+        otherWrap.appendChild(otherField);
 
         const continueBtn = document.createElement('button');
         continueBtn.className = 'btn btn-primary btn-block';
         continueBtn.textContent = 'Continue';
-        grid.appendChild(continueBtn);
+        otherWrap.appendChild(continueBtn);
 
         function submitOther(){
           const val = otherInput.value.trim();
@@ -206,6 +202,7 @@
         }
         continueBtn.addEventListener('click', submitOther);
         otherInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') submitOther(); });
+        container.appendChild(otherWrap);
         otherInput.focus();
       });
       grid.appendChild(otherBtn);
@@ -292,6 +289,14 @@
     const card = document.createElement('div');
     card.className = 'item-card';
 
+    if(photosEnabled && item.photo){
+      const photo = document.createElement('img');
+      photo.className = 'item-photo';
+      photo.src = item.photo;
+      photo.alt = item.name;
+      card.appendChild(photo);
+    }
+
     const name = document.createElement('p');
     name.className = 'item-name';
     name.textContent = item.name;
@@ -304,12 +309,6 @@
       card.appendChild(cat);
     }
 
-    if(item.notes){
-      const notes = document.createElement('p');
-      notes.className = 'item-notes';
-      notes.textContent = item.notes;
-      card.appendChild(notes);
-    }
 
     const isOut = item.status === 'out';
     const statusBadge = document.createElement('p');
@@ -321,26 +320,6 @@
     card.appendChild(statusBadge);
 
     if(isOut){
-      const holderLine = document.createElement('p');
-      holderLine.className = 'holder-line';
-      const b = document.createElement('b');
-      b.textContent = firstName(item.holder) || 'Unknown';
-      holderLine.appendChild(document.createTextNode('Has it: '));
-      holderLine.appendChild(b);
-      if(item.since){
-        holderLine.appendChild(document.createTextNode(' · since ' + fmtTime(item.since)));
-      }
-      card.appendChild(holderLine);
-
-      if(item.reason){
-        const reasonLine = document.createElement('p');
-        reasonLine.className = 'holder-line';
-        reasonLine.style.marginTop = '-8px';
-        reasonLine.style.color = 'var(--ink-soft)';
-        reasonLine.textContent = 'Reason: ' + item.reason;
-        card.appendChild(reasonLine);
-      }
-
       const btn = document.createElement('button');
       btn.className = 'btn btn-primary btn-lg btn-block';
       btn.textContent = 'Check In';
@@ -435,23 +414,29 @@
     root.appendChild(card);
   }
 
-  if(!itemId){
-    renderEmpty();
-  } else {
-    const ref = firebase.database().ref('equipment/items/' + itemId);
-    ref.on('value', (snap) => {
-      if(finished) return; // don't let the live listener clobber the "done" / scan-next screen
-      const item = snap.val();
-      if(!item){ renderNotFound(); return; }
-      if(item.archived){ renderArchived(item); return; }
-      renderItem(item);
-    }, () => {
-      if(finished) return;
-      clear(root);
-      const box = document.createElement('div');
-      box.className = 'empty-state';
-      box.textContent = 'Could not connect. Check your internet connection and reload.';
-      root.appendChild(box);
-    });
-  }
+  // Fetch the photos-enabled flag once before the first render — it rarely
+  // changes, so a live listener isn't worth the extra complexity here.
+  firebase.database().ref('equipment/settings/photosEnabled').once('value').then((snap) => {
+    photosEnabled = !!snap.val();
+  }).catch(() => {}).then(() => {
+    if(!itemId){
+      renderEmpty();
+    } else {
+      const ref = firebase.database().ref('equipment/items/' + itemId);
+      ref.on('value', (snap) => {
+        if(finished) return; // don't let the live listener clobber the "done" / scan-next screen
+        const item = snap.val();
+        if(!item){ renderNotFound(); return; }
+        if(item.archived){ renderArchived(item); return; }
+        renderItem(item);
+      }, () => {
+        if(finished) return;
+        clear(root);
+        const box = document.createElement('div');
+        box.className = 'empty-state';
+        box.textContent = 'Could not connect. Check your internet connection and reload.';
+        root.appendChild(box);
+      });
+    }
+  });
 })();

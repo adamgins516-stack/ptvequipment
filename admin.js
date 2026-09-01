@@ -2,16 +2,46 @@
   const itemsRef = firebase.database().ref('equipment/items');
   const historyRef = firebase.database().ref('equipment/history');
   const rosterRef = firebase.database().ref('equipment/roster');
+  const settingsRef = firebase.database().ref('equipment/settings');
 
   let items = {};
   let history = {};
   let roster = {};
-  let loaded = { items:false, history:false, roster:false };
+  let settings = {};
+  let loaded = { items:false, history:false, roster:false, settings:false };
 
   let inventoryFilter = 'all'; // 'all' | 'archived' | category name
+  let inventorySearch = '';
   let selectedIds = new Set();
   let editingId = null; // null = add mode, else editing this item id
   let historySearch = '';
+  let pendingPhotoDataUrl; // undefined = no new photo picked this modal session
+
+  // Resizes/compresses an image file down to a small JPEG data URL so it's
+  // cheap to store directly in the Realtime Database (no Storage setup needed).
+  function resizeImageFile(file, maxDim, quality){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if(w > maxDim || h > maxDim){
+            if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
   function clear(el){ while(el.firstChild) el.removeChild(el.firstChild); }
 
@@ -59,13 +89,15 @@
   itemsRef.on('value', (snap) => { items = snap.val() || {}; loaded.items = true; renderAll(); });
   historyRef.on('value', (snap) => { history = snap.val() || {}; loaded.history = true; renderAll(); });
   rosterRef.on('value', (snap) => { roster = snap.val() || {}; loaded.roster = true; renderAll(); });
+  settingsRef.on('value', (snap) => { settings = snap.val() || {}; loaded.settings = true; renderAll(); });
 
   function renderAll(){
-    if(!loaded.items || !loaded.history || !loaded.roster) return;
+    if(!loaded.items || !loaded.history || !loaded.roster || !loaded.settings) return;
     renderDashboard();
     renderInventory();
     renderHistory();
     renderRoster();
+    renderSettings();
   }
 
   // ---------------- Shared actions ----------------
@@ -201,6 +233,18 @@
     });
     view.appendChild(chipBar);
 
+    const searchField = document.createElement('input');
+    searchField.type = 'text';
+    searchField.placeholder = 'Search by name…';
+    searchField.value = inventorySearch;
+    searchField.style.width = '100%';
+    searchField.style.padding = '10px';
+    searchField.style.border = '1px solid var(--line)';
+    searchField.style.borderRadius = '8px';
+    searchField.style.marginBottom = '12px';
+    searchField.addEventListener('input', (e) => { inventorySearch = e.target.value; renderInventory(); });
+    view.appendChild(searchField);
+
     let entries = Object.entries(items);
     if(inventoryFilter === 'archived'){
       entries = entries.filter(([,it]) => it.archived);
@@ -210,12 +254,17 @@
         entries = entries.filter(([,it]) => it.category === inventoryFilter);
       }
     }
+    const q = inventorySearch.trim().toLowerCase();
+    if(q){
+      entries = entries.filter(([,it]) => (it.name||'').toLowerCase().includes(q));
+    }
     entries.sort((a,b) => a[1].name.localeCompare(b[1].name));
 
     if(entries.length === 0){
       const empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = inventoryFilter === 'archived' ? 'No archived items.' : 'No items yet — add your first one above.';
+      empty.textContent = q ? 'No items match "' + inventorySearch.trim() + '".' :
+        (inventoryFilter === 'archived' ? 'No archived items.' : 'No items yet — add your first one above.');
       view.appendChild(empty);
       return;
     }
@@ -242,6 +291,17 @@
           renderInventory();
         });
         left.appendChild(cb);
+      }
+
+      if(settings.photosEnabled && it.photo){
+        const thumb = document.createElement('img');
+        thumb.src = it.photo;
+        thumb.style.width = '44px';
+        thumb.style.height = '44px';
+        thumb.style.objectFit = 'cover';
+        thumb.style.borderRadius = '8px';
+        thumb.style.flexShrink = '0';
+        left.appendChild(thumb);
       }
 
       const stack = document.createElement('div');
@@ -332,6 +392,10 @@
   const itemCategoryInput = document.getElementById('itemCategoryInput');
   const itemNotesInput = document.getElementById('itemNotesInput');
   const categoryList = document.getElementById('categoryList');
+  const itemPhotoField = document.getElementById('itemPhotoField');
+  const itemPhotoInput = document.getElementById('itemPhotoInput');
+  const itemPhotoPreviewWrap = document.getElementById('itemPhotoPreviewWrap');
+  const itemPhotoPreview = document.getElementById('itemPhotoPreview');
 
   function openItemModal(id){
     editingId = id;
@@ -346,12 +410,39 @@
       opt.value = c;
       categoryList.appendChild(opt);
     });
+
+    pendingPhotoDataUrl = undefined;
+    itemPhotoInput.value = '';
+    itemPhotoField.style.display = settings.photosEnabled ? '' : 'none';
+    if(it && it.photo){
+      itemPhotoPreview.src = it.photo;
+      itemPhotoPreviewWrap.style.display = '';
+    } else {
+      itemPhotoPreviewWrap.style.display = 'none';
+    }
+
     itemModal.classList.add('active');
     itemNameInput.focus();
   }
-  function closeItemModal(){ itemModal.classList.remove('active'); editingId = null; itemForm.reset(); }
+  function closeItemModal(){
+    itemModal.classList.remove('active');
+    editingId = null;
+    pendingPhotoDataUrl = undefined;
+    itemForm.reset();
+    itemPhotoPreviewWrap.style.display = 'none';
+  }
   document.getElementById('itemModalClose').addEventListener('click', closeItemModal);
   itemModal.addEventListener('click', (e) => { if(e.target === itemModal) closeItemModal(); });
+
+  itemPhotoInput.addEventListener('change', () => {
+    const file = itemPhotoInput.files[0];
+    if(!file) return;
+    resizeImageFile(file, 640, 0.7).then((dataUrl) => {
+      pendingPhotoDataUrl = dataUrl;
+      itemPhotoPreview.src = dataUrl;
+      itemPhotoPreviewWrap.style.display = '';
+    }).catch(() => showToast('Could not read that image'));
+  });
 
   itemForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -359,17 +450,18 @@
     if(!name) return;
     const category = itemCategoryInput.value.trim();
     const notes = itemNotesInput.value.trim();
+    const photoPatch = pendingPhotoDataUrl !== undefined ? { photo: pendingPhotoDataUrl } : {};
 
     if(editingId){
-      itemsRef.child(editingId).update({ name, category, notes });
+      itemsRef.child(editingId).update(Object.assign({ name, category, notes }, photoPatch));
       showToast('Saved');
     } else {
       const id = genId();
-      itemsRef.child(id).set({
+      itemsRef.child(id).set(Object.assign({
         name, category, notes,
         status: 'in', holder: null, since: Date.now(),
         addedAt: Date.now(), archived: false
-      });
+      }, photoPatch));
       showToast('Added "' + name + '"');
     }
     closeItemModal();
@@ -526,12 +618,58 @@
     view.appendChild(card);
   }
 
+  // ---------------- Settings ----------------
+  function renderSettings(){
+    const view = document.getElementById('settingsView');
+    clear(view);
+
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const row = document.createElement('div');
+    row.className = 'row';
+
+    const stack = document.createElement('div');
+    stack.className = 'stack';
+    const title = document.createElement('strong');
+    title.textContent = 'Item photos';
+    const desc = document.createElement('span');
+    desc.style.fontSize = '12.5px';
+    desc.style.color = 'var(--ink-soft)';
+    desc.textContent = 'Let items have a photo, shown on the scan page and in Inventory.';
+    stack.appendChild(title);
+    stack.appendChild(desc);
+    row.appendChild(stack);
+
+    const toggleLabel = document.createElement('label');
+    toggleLabel.style.display = 'flex';
+    toggleLabel.style.alignItems = 'center';
+    toggleLabel.style.gap = '8px';
+    toggleLabel.style.flexShrink = '0';
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.checked = !!settings.photosEnabled;
+    const toggleText = document.createElement('span');
+    toggleText.textContent = settings.photosEnabled ? 'On' : 'Off';
+    toggle.addEventListener('change', () => {
+      settingsRef.update({ photosEnabled: toggle.checked });
+      showToast(toggle.checked ? 'Item photos enabled' : 'Item photos disabled');
+    });
+    toggleLabel.appendChild(toggle);
+    toggleLabel.appendChild(toggleText);
+    row.appendChild(toggleLabel);
+
+    card.appendChild(row);
+    view.appendChild(card);
+  }
+
   // ---------------- Tabs ----------------
   const tabs = {
     dashboard: [document.getElementById('tabDashboard'), document.getElementById('dashboardView')],
     inventory: [document.getElementById('tabInventory'), document.getElementById('inventoryView')],
     history:   [document.getElementById('tabHistory'), document.getElementById('historyView')],
-    roster:    [document.getElementById('tabRoster'), document.getElementById('rosterView')]
+    roster:    [document.getElementById('tabRoster'), document.getElementById('rosterView')],
+    settings:  [document.getElementById('tabSettings'), document.getElementById('settingsView')]
   };
   function switchTab(which){
     Object.entries(tabs).forEach(([key, [btn, panel]]) => {
@@ -543,4 +681,5 @@
   tabs.inventory[0].addEventListener('click', () => switchTab('inventory'));
   tabs.history[0].addEventListener('click', () => switchTab('history'));
   tabs.roster[0].addEventListener('click', () => switchTab('roster'));
+  tabs.settings[0].addEventListener('click', () => switchTab('settings'));
 })();

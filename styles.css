@@ -29,6 +29,9 @@ body{
   -webkit-text-size-adjust:100%;
 }
 img,input,select,textarea,button{max-width:100%;font-family:inherit;}
+/* iOS Safari auto-zooms the page on focus if a text input is under 16px —
+   keep every input/select/textarea at 16px+ so that never triggers. */
+input,select,textarea{font-size:16px;}
 button{cursor:pointer;}
 
 /* ---------- Header ---------- */
@@ -82,6 +85,7 @@ button{cursor:pointer;}
   background:var(--paper-2);border:1px solid var(--line);border-radius:16px;
   padding:24px;text-align:center;
 }
+.item-photo{width:100%;max-height:240px;object-fit:cover;border-radius:12px;display:block;}
 .item-name{font-size:26px;font-weight:900;margin:8px 0 4px;}
 .item-meta{color:var(--ink-soft);font-size:13px;margin:0 0 14px;}
 .item-notes{font-size:13px;color:var(--ink-soft);margin:10px 0 0;font-style:italic;}
@@ -116,7 +120,7 @@ button{cursor:pointer;}
 .auth-sub{color:#B8B8B8;font-size:13px;margin:0 0 16px;}
 .auth-box input{
   width:100%;padding:12px;border-radius:10px;border:1px solid #333;
-  background:#141414;color:#fff;font-size:15px;margin-bottom:10px;
+  background:#141414;color:#fff;font-size:16px;margin-bottom:10px;
 }
 .auth-error{color:#FF6B6B;font-size:13px;margin-top:10px;}
 
@@ -137,7 +141,7 @@ button{cursor:pointer;}
 .field{margin-bottom:10px;}
 .field label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;}
 .field input,.field select,.field textarea{
-  width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff;
+  width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:16px;background:#fff;
 }
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}

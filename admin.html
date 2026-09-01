@@ -36,6 +36,7 @@
     <button class="tab-btn" id="tabInventory">Inventory</button>
     <button class="tab-btn" id="tabHistory">History</button>
     <button class="tab-btn" id="tabRoster">Roster</button>
+    <button class="tab-btn" id="tabSettings">Settings</button>
   </div>
 
   <div class="content">
@@ -43,6 +44,7 @@
     <div id="inventoryView" style="display:none;"></div>
     <div id="historyView" style="display:none;"></div>
     <div id="rosterView" style="display:none;"></div>
+    <div id="settingsView" style="display:none;"></div>
   </div>
 </div>
 
@@ -77,6 +79,13 @@
       <div class="field">
         <label>Notes (optional)</label>
         <textarea id="itemNotesInput" rows="2" placeholder="Serial #, condition, etc."></textarea>
+      </div>
+      <div class="field" id="itemPhotoField" style="display:none;">
+        <label>Photo (optional)</label>
+        <div id="itemPhotoPreviewWrap" style="display:none; margin-bottom:8px;">
+          <img id="itemPhotoPreview" style="max-width:120px; border-radius:8px; display:block;" />
+        </div>
+        <input type="file" id="itemPhotoInput" accept="image/*" />
       </div>
       <button type="submit" class="btn btn-primary btn-block" id="itemSaveBtn">Save</button>
     </form>
