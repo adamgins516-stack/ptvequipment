@@ -48,19 +48,22 @@ fine for an internal crew tool; don't put anything sensitive in it.
    existing project**, connect this repo. No build command needed — leave
    the build command blank and publish directory as `/` (repo root).
 3. Once deployed, go to **Site configuration → Domain management → Add a
-   custom domain** and add something like `equipment.ahspatriotstv.com`.
-   Netlify will give you a DNS target.
-4. In your DNS provider for `ahspatriotstv.com`, add the CNAME (or A/ALIAS
-   record, whatever Netlify's instructions say) it gives you.
+   custom domain** and add `equipment.ahspatriotstv.com`.
+   Netlify will give you a DNS target (something like `xxxx.netlify.app`).
+4. In your DNS provider for `ahspatriotstv.com`, add:
+   ```
+   CNAME   equipment   <the target Netlify gave you>
+   ```
+   DNS propagation is usually a few minutes, sometimes up to an hour.
 
 That's it — Netlify auto-redeploys on every push to this branch.
 
-### 3. Set the admin password
+### 3. Admin password
 
-Open `auth.js` and change `SITE_PASSWORD` (currently `ptvgear1`) to
-whatever you want the crew admin password to be, then redeploy. Same
-"keep honest people out" gate as the other PTV tools — not real security,
-so don't rely on it for anything sensitive.
+Already set in `auth.js` — `ptvequipment67`. Same "keep honest people out"
+gate as the other PTV tools (anyone who views page source can read it) —
+not real security, so don't rely on it for anything sensitive. Change it
+any time by editing `SITE_PASSWORD` in `auth.js` and redeploying.
 
 ### 4. Add your crew roster and first items
 
