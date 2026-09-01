@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Patriots TV Equipment — Crew Admin</title>
+<meta name="theme-color" content="#0A0A0A" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="authGate" class="auth-gate">
+  <div class="auth-box">
+    <img src="logo.png" alt="Patriots TV logo" class="auth-logo" />
+    <p class="auth-title">Patriots <span>TV</span></p>
+    <p class="auth-sub">Enter the crew password to continue</p>
+    <form id="authForm">
+      <input type="password" id="authPassword" placeholder="Password" autocomplete="off" />
+      <button type="submit" class="btn btn-primary">Enter</button>
+    </form>
+    <p class="auth-error" id="authError" style="display:none;">Incorrect password — try again.</p>
+  </div>
+</div>
+
+<div class="hdr">
+  <div class="brand">
+    <img src="logo.png" alt="Patriots TV logo" class="logo" />
+    <p class="wordmark">Patriots <span>TV</span><small>Equipment Admin</small></p>
+  </div>
+  <a href="index.html" class="btn btn-ghost btn-sm">Scan Page</a>
+</div>
+
+<div class="app">
+  <div class="tabs">
+    <button class="tab-btn active" id="tabDashboard">Dashboard</button>
+    <button class="tab-btn" id="tabInventory">Inventory</button>
+    <button class="tab-btn" id="tabHistory">History</button>
+    <button class="tab-btn" id="tabRoster">Roster</button>
+  </div>
+
+  <div class="content">
+    <div id="dashboardView"></div>
+    <div id="inventoryView" style="display:none;"></div>
+    <div id="historyView" style="display:none;"></div>
+    <div id="rosterView" style="display:none;"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="qrModal">
+  <div class="modal-box">
+    <div class="row">
+      <p style="font-weight:800;margin:0;" id="qrModalTitle">QR Code</p>
+      <button class="btn btn-ghost btn-sm" id="qrModalClose">Close</button>
+    </div>
+    <div class="qr-canvas-wrap"><canvas id="qrCanvas"></canvas></div>
+    <p style="font-size:12px;color:var(--ink-soft);word-break:break-all;" id="qrModalUrl"></p>
+    <button class="btn btn-primary btn-block" id="qrDownloadBtn">Download PNG</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="itemModal">
+  <div class="modal-box">
+    <div class="row">
+      <p style="font-weight:800;margin:0;" id="itemModalTitle">Add Item</p>
+      <button class="btn btn-ghost btn-sm" id="itemModalClose">Close</button>
+    </div>
+    <form id="itemForm">
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="itemNameInput" required placeholder="e.g. Sony A7 IV #2" />
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <input type="text" id="itemCategoryInput" list="categoryList" placeholder="e.g. Camera" />
+        <datalist id="categoryList"></datalist>
+      </div>
+      <div class="field">
+        <label>Notes (optional)</label>
+        <textarea id="itemNotesInput" rows="2" placeholder="Serial #, condition, etc."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="itemSaveBtn">Save</button>
+    </form>
+  </div>
+</div>
+
+<!-- Firebase (compat SDK — no build tools needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+<script src="firebase-config.js"></script>
+<script src="auth.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

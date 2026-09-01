@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Patriots TV Equipment</title>
+<meta name="theme-color" content="#0A0A0A" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="hdr">
+  <div class="brand">
+    <img src="logo.png" alt="Patriots TV logo" class="logo" />
+    <p class="wordmark">Patriots <span>TV</span><small>Equipment</small></p>
+  </div>
+</div>
+
+<div class="scan-wrap" id="scanRoot">
+  <div class="empty-state">Loading…</div>
+</div>
+
+<!-- Firebase (compat SDK — no build tools needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
