@@ -5,7 +5,7 @@
   // real security. Do not put anything sensitive behind it.
   // Change it any time by editing the line below and redeploying.
   // ============================================================
-  const SITE_PASSWORD = "ptvequipment67";
+  const SITE_PASSWORD = "equip67";
 
   const gate = document.getElementById('authGate');
   const form = document.getElementById('authForm');
