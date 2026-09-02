@@ -1,4 +1,8 @@
 (function(){
+  // QR codes always encode this branded domain, regardless of which URL
+  // this scan page itself happens to be opened from.
+  const SITE_URL = 'https://equipment.ahspatriotstv.com';
+
   const root = document.getElementById('scanRoot');
   const params = new URLSearchParams(window.location.search);
   const itemId = params.get('id');
@@ -84,7 +88,7 @@
           const code = window.jsQR ? jsQR(imageData.data, imageData.width, imageData.height) : null;
           if(code && code.data){
             const text = code.data;
-            if(text.indexOf(window.location.origin) === 0 && text.indexOf('id=') !== -1){
+            if(text.indexOf(SITE_URL) === 0 && text.indexOf('id=') !== -1){
               hint.textContent = 'Found it!';
               stopScanner();
               window.location.href = text;

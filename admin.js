@@ -1,4 +1,8 @@
 (function(){
+  // QR codes always encode the branded custom domain, regardless of which
+  // URL Crew Admin itself happens to be opened from.
+  const SITE_URL = 'https://equipment.ahspatriotstv.com';
+
   const itemsRef = firebase.database().ref('equipment/items');
   const historyRef = firebase.database().ref('equipment/history');
   const rosterRef = firebase.database().ref('equipment/roster');
@@ -477,7 +481,7 @@
 
   function openQrModal(id, name){
     currentQrName = name;
-    const url = window.location.origin + '/?id=' + id;
+    const url = SITE_URL + '/?id=' + id;
     qrModalTitle.textContent = name;
     qrModalUrl.textContent = url;
     QRCode.toCanvas(qrCanvas, url, { width: 220, margin: 1 }, function(err){

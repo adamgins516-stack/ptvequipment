@@ -1,4 +1,8 @@
 (function(){
+  // QR codes always encode the branded custom domain, regardless of which
+  // URL this print page itself happens to be opened from.
+  const SITE_URL = 'https://equipment.ahspatriotstv.com';
+
   const sheet = document.getElementById('labelSheet');
   const params = new URLSearchParams(window.location.search);
   const ids = (params.get('ids') || '').split(',').filter(Boolean);
@@ -16,7 +20,7 @@
     ids.forEach((id) => {
       const it = items[id];
       if(!it) return;
-      const url = window.location.origin + '/?id=' + id;
+      const url = SITE_URL + '/?id=' + id;
 
       const card = document.createElement('div');
       card.className = 'label-card';
