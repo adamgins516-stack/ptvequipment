@@ -499,21 +499,89 @@
   });
 
   // ---------------- History ----------------
+  function fmtFullTime(ts){
+    if(!ts) return '—';
+    const d = new Date(ts);
+    return d.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'}) +
+      ' at ' + d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+  }
+
+  function csvEscape(val){
+    const s = String(val == null ? '' : val);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function exportHistoryCsv(entries){
+    const header = ['Date/Time', 'Item', 'Action', 'Person', 'Reason'];
+    const rows = entries.map(([, h]) => [
+      h.at ? new Date(h.at).toLocaleString('en-US') : '',
+      h.itemName || '(deleted item)',
+      h.action === 'checkout' ? 'Checked Out' : 'Checked In',
+      h.person || 'Unknown',
+      h.reason || ''
+    ]);
+    const csv = [header].concat(rows).map(r => r.map(csvEscape).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'equipment-history-' + new Date().toISOString().slice(0,10) + '.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  const historyModal = document.getElementById('historyModal');
+  const historyModalBody = document.getElementById('historyModalBody');
+
+  function detailRow(label, value){
+    const row = document.createElement('div');
+    row.className = 'detail-row';
+    const l = document.createElement('span');
+    l.className = 'detail-label';
+    l.textContent = label;
+    row.appendChild(l);
+    const v = document.createElement('div');
+    v.className = 'detail-value';
+    v.textContent = value;
+    row.appendChild(v);
+    return row;
+  }
+
+  function openHistoryModal(h){
+    clear(historyModalBody);
+    historyModalBody.appendChild(detailRow('Item', h.itemName || '(deleted item)'));
+    const currentItem = h.itemId ? items[h.itemId] : null;
+    if(currentItem && currentItem.category){
+      historyModalBody.appendChild(detailRow('Category', currentItem.category));
+    }
+    historyModalBody.appendChild(detailRow('Action', h.action === 'checkout' ? 'Checked Out' : 'Checked In'));
+    historyModalBody.appendChild(detailRow('Person', h.person || 'Unknown'));
+    if(h.reason){
+      historyModalBody.appendChild(detailRow('Reason', h.reason));
+    }
+    historyModalBody.appendChild(detailRow('When', fmtFullTime(h.at)));
+    historyModal.classList.add('active');
+  }
+  document.getElementById('historyModalClose').addEventListener('click', () => historyModal.classList.remove('active'));
+  historyModal.addEventListener('click', (e) => { if(e.target === historyModal) historyModal.classList.remove('active'); });
+
   function renderHistory(){
     const view = document.getElementById('historyView');
     clear(view);
+
+    const topRow = document.createElement('div');
+    topRow.className = 'row';
+    topRow.style.marginBottom = '12px';
 
     const searchField = document.createElement('input');
     searchField.type = 'text';
     searchField.placeholder = 'Filter by item or name…';
     searchField.value = historySearch;
-    searchField.style.width = '100%';
+    searchField.style.flex = '1';
     searchField.style.padding = '10px';
     searchField.style.border = '1px solid var(--line)';
     searchField.style.borderRadius = '8px';
-    searchField.style.marginBottom = '12px';
     searchField.addEventListener('input', (e) => { historySearch = e.target.value; renderHistory(); });
-    view.appendChild(searchField);
+    topRow.appendChild(searchField);
 
     let entries = Object.entries(history);
     const q = historySearch.trim().toLowerCase();
@@ -523,6 +591,15 @@
       );
     }
     entries.sort((a,b) => (b[1].at||0) - (a[1].at||0));
+
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'btn btn-outline btn-sm';
+    exportBtn.textContent = 'Export CSV';
+    exportBtn.disabled = entries.length === 0;
+    exportBtn.addEventListener('click', () => exportHistoryCsv(entries));
+    topRow.appendChild(exportBtn);
+
+    view.appendChild(topRow);
 
     if(entries.length === 0){
       const empty = document.createElement('div');
@@ -537,6 +614,9 @@
     entries.slice(0, 300).forEach(([, h]) => {
       const row = document.createElement('div');
       row.className = 'history-row';
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => openHistoryModal(h));
+
       const line = document.createElement('div');
       const strongName = document.createElement('strong');
       strongName.textContent = h.itemName || '(deleted item)';
