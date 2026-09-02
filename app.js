@@ -313,6 +313,13 @@
       card.appendChild(cat);
     }
 
+    if(item.damaged){
+      const dmgBanner = document.createElement('div');
+      dmgBanner.className = 'error-box';
+      dmgBanner.style.marginTop = '14px';
+      dmgBanner.textContent = '⚠ This item may need repair — check with an EP before using it.';
+      card.appendChild(dmgBanner);
+    }
 
     const isOut = item.status === 'out';
     const statusBadge = document.createElement('p');

@@ -14,9 +14,11 @@
   let settings = {};
   let loaded = { items:false, history:false, roster:false, settings:false };
 
-  let inventoryFilter = 'all'; // 'all' | 'archived' | category name
+  let inventoryFilter = 'all'; // 'all' | 'archived' | 'damaged' | category name
   let inventorySearch = '';
   let selectedIds = new Set();
+  let printSheet = 'standard'; // 'standard' | 'avery22807' | 'avery2160'
+  let printPerLabel = 1; // 1, 2, or 3 items sharing one physical label
   let editingId = null; // null = add mode, else editing this item id
   let historySearch = '';
   let pendingPhotoDataUrl; // undefined = no new photo picked this modal session
@@ -158,19 +160,37 @@
 
     outItems.sort((a,b) => (a[1].since||0) - (b[1].since||0));
 
+    const overdueMs = (settings.overdueHours || 24) * 3600000;
+
     const card = document.createElement('div');
     card.className = 'card';
     outItems.forEach(([id, it]) => {
+      const isOverdue = it.since && (Date.now() - it.since) > overdueMs;
+
       const row = document.createElement('div');
       row.className = 'item-row';
+      if(isOverdue){
+        row.style.borderLeft = '3px solid var(--red)';
+        row.style.paddingLeft = '8px';
+      }
 
       const stack = document.createElement('div');
       stack.className = 'stack';
+      const nameRow = document.createElement('div');
       const n = document.createElement('strong'); n.textContent = it.name;
+      nameRow.appendChild(n);
+      if(isOverdue){
+        const overdueBadge = document.createElement('span');
+        overdueBadge.className = 'badge-status badge-out';
+        overdueBadge.style.marginLeft = '8px';
+        overdueBadge.textContent = 'Overdue';
+        nameRow.appendChild(overdueBadge);
+      }
+      stack.appendChild(nameRow);
       const m = document.createElement('span');
       m.style.fontSize = '12.5px'; m.style.color = 'var(--ink-soft)';
       m.textContent = (it.holder || 'Unknown') + ' · since ' + fmtTime(it.since) + (it.reason ? ' · ' + it.reason : '');
-      stack.appendChild(n); stack.appendChild(m);
+      stack.appendChild(m);
       row.appendChild(stack);
 
       const btn = document.createElement('button');
@@ -202,14 +222,18 @@
     const printWrap = document.createElement('div');
     printWrap.style.display = 'flex';
     printWrap.style.gap = '6px';
+    printWrap.style.flexWrap = 'wrap';
+
+    function openPrint(ids){
+      const q = 'ids=' + ids.join(',') + '&sheet=' + printSheet + '&per=' + printPerLabel;
+      window.open('print.html?' + q, '_blank');
+    }
 
     const printSelBtn = document.createElement('button');
     printSelBtn.className = 'btn btn-outline btn-sm';
     printSelBtn.textContent = 'Print Selected (' + selectedIds.size + ')';
     printSelBtn.disabled = selectedIds.size === 0;
-    printSelBtn.addEventListener('click', () => {
-      window.open('print.html?ids=' + Array.from(selectedIds).join(','), '_blank');
-    });
+    printSelBtn.addEventListener('click', () => openPrint(Array.from(selectedIds)));
     printWrap.appendChild(printSelBtn);
 
     const printAllBtn = document.createElement('button');
@@ -218,20 +242,85 @@
     printAllBtn.addEventListener('click', () => {
       const ids = activeItems().map(([id]) => id);
       if(ids.length === 0){ showToast('No items yet'); return; }
-      window.open('print.html?ids=' + ids.join(','), '_blank');
+      openPrint(ids);
     });
     printWrap.appendChild(printAllBtn);
+
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'btn btn-outline btn-sm';
+    exportBtn.textContent = 'Export CSV';
+    exportBtn.addEventListener('click', () => exportInventoryCsv(Object.entries(items)));
+    printWrap.appendChild(exportBtn);
 
     topRow.appendChild(printWrap);
     view.appendChild(topRow);
 
+    // ---- Label sheet + how many items share one physical label ----
+    const printOptsRow = document.createElement('div');
+    printOptsRow.className = 'row';
+    printOptsRow.style.marginBottom = '12px';
+    printOptsRow.style.gap = '8px';
+
+    const sheetLabel = document.createElement('label');
+    sheetLabel.style.fontSize = '12.5px';
+    sheetLabel.style.display = 'flex';
+    sheetLabel.style.alignItems = 'center';
+    sheetLabel.style.gap = '6px';
+    sheetLabel.appendChild(document.createTextNode('Label sheet:'));
+    const sheetSelect = document.createElement('select');
+    sheetSelect.style.padding = '6px';
+    sheetSelect.style.borderRadius = '6px';
+    sheetSelect.style.border = '1px solid var(--line)';
+    [
+      ['standard', 'Standard Paper (3/row)'],
+      ['avery22807', 'Avery 22807 — 2" Round (12/sheet)'],
+      ['avery2160', 'Avery 2160 — Mini-Sheet (8/sheet)']
+    ].forEach(([val, label]) => {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = label;
+      if(printSheet === val) opt.selected = true;
+      sheetSelect.appendChild(opt);
+    });
+    sheetSelect.addEventListener('change', () => { printSheet = sheetSelect.value; });
+    sheetLabel.appendChild(sheetSelect);
+    printOptsRow.appendChild(sheetLabel);
+
+    const perLabel = document.createElement('label');
+    perLabel.style.fontSize = '12.5px';
+    perLabel.style.display = 'flex';
+    perLabel.style.alignItems = 'center';
+    perLabel.style.gap = '6px';
+    perLabel.appendChild(document.createTextNode('Items per label:'));
+    const perSelect = document.createElement('select');
+    perSelect.style.padding = '6px';
+    perSelect.style.borderRadius = '6px';
+    perSelect.style.border = '1px solid var(--line)';
+    [1, 2, 3].forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      if(printPerLabel === n) opt.selected = true;
+      perSelect.appendChild(opt);
+    });
+    perSelect.addEventListener('change', () => { printPerLabel = Number(perSelect.value); });
+    perLabel.appendChild(perSelect);
+    printOptsRow.appendChild(perLabel);
+
+    view.appendChild(printOptsRow);
+
+    const printHint = document.createElement('p');
+    printHint.style.fontSize = '11.5px';
+    printHint.style.color = 'var(--ink-soft)';
+    printHint.style.marginTop = '-8px';
+    printHint.textContent = '"Items per label" only applies to the Avery sheets — Standard Paper always prints one item per card.';
+    view.appendChild(printHint);
+
     const chipBar = document.createElement('div');
     chipBar.className = 'chip-filter';
-    const filters = ['all'].concat(categories()).concat(['archived']);
+    const filters = ['all'].concat(categories()).concat(['damaged', 'archived']);
     filters.forEach(f => {
       const chip = document.createElement('button');
       chip.className = 'chip' + (inventoryFilter === f ? ' active' : '');
-      chip.textContent = f === 'all' ? 'All' : (f === 'archived' ? 'Archived' : f);
+      chip.textContent = f === 'all' ? 'All' : (f === 'archived' ? 'Archived' : (f === 'damaged' ? 'Needs Repair' : f));
       chip.addEventListener('click', () => { inventoryFilter = f; renderInventory(); });
       chipBar.appendChild(chip);
     });
@@ -252,6 +341,8 @@
     let entries = Object.entries(items);
     if(inventoryFilter === 'archived'){
       entries = entries.filter(([,it]) => it.archived);
+    } else if(inventoryFilter === 'damaged'){
+      entries = entries.filter(([,it]) => !it.archived && it.damaged);
     } else {
       entries = entries.filter(([,it]) => !it.archived);
       if(inventoryFilter !== 'all'){
@@ -327,6 +418,12 @@
         badge.textContent = it.status === 'out' ? 'Out — ' + (it.holder||'?') : 'Available';
         metaRow.appendChild(badge);
       }
+      if(it.damaged){
+        const dmg = document.createElement('span');
+        dmg.className = 'badge-status badge-out';
+        dmg.textContent = 'Needs Repair';
+        metaRow.appendChild(dmg);
+      }
       stack.appendChild(metaRow);
       left.appendChild(stack);
       row.appendChild(left);
@@ -354,6 +451,12 @@
           ciBtn.addEventListener('click', () => forceCheckIn(id));
           actions.appendChild(ciBtn);
         }
+
+        const dmgBtn = document.createElement('button');
+        dmgBtn.className = 'btn btn-ghost btn-sm';
+        dmgBtn.textContent = it.damaged ? 'Mark Fixed' : 'Mark Damaged';
+        dmgBtn.addEventListener('click', () => itemsRef.child(id).update({ damaged: !it.damaged }));
+        actions.appendChild(dmgBtn);
 
         const archBtn = document.createElement('button');
         archBtn.className = 'btn btn-ghost btn-sm';
@@ -400,11 +503,21 @@
   const itemPhotoInput = document.getElementById('itemPhotoInput');
   const itemPhotoPreviewWrap = document.getElementById('itemPhotoPreviewWrap');
   const itemPhotoPreview = document.getElementById('itemPhotoPreview');
+  const itemUsageStats = document.getElementById('itemUsageStats');
 
   function openItemModal(id){
     editingId = id;
     const it = id ? items[id] : null;
     itemModalTitle.textContent = id ? 'Edit Item' : 'Add Item';
+
+    if(id){
+      const checkoutCount = Object.values(history).filter(h => h.itemId === id && h.action === 'checkout').length;
+      itemUsageStats.textContent = 'Checked out ' + checkoutCount + ' time' + (checkoutCount === 1 ? '' : 's') + ' total';
+      itemUsageStats.style.display = '';
+    } else {
+      itemUsageStats.style.display = 'none';
+    }
+
     itemNameInput.value = it ? it.name : '';
     itemCategoryInput.value = it ? (it.category || '') : '';
     itemNotesInput.value = it ? (it.notes || '') : '';
@@ -511,6 +624,30 @@
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
+  function downloadCsv(filenamePrefix, header, rows){
+    const csv = [header].concat(rows).map(r => r.map(csvEscape).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filenamePrefix + '-' + new Date().toISOString().slice(0,10) + '.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function exportInventoryCsv(entries){
+    const header = ['Name', 'Category', 'Status', 'Holder', 'Needs Repair', 'Archived', 'Notes'];
+    const rows = entries.map(([, it]) => [
+      it.name || '',
+      it.category || '',
+      it.archived ? '—' : (it.status === 'out' ? 'Checked Out' : 'Available'),
+      it.status === 'out' ? (it.holder || 'Unknown') : '',
+      it.damaged ? 'Yes' : 'No',
+      it.archived ? 'Yes' : 'No',
+      it.notes || ''
+    ]);
+    downloadCsv('equipment-inventory', header, rows);
+  }
+
   function exportHistoryCsv(entries){
     const header = ['Date/Time', 'Item', 'Action', 'Person', 'Reason'];
     const rows = entries.map(([, h]) => [
@@ -520,13 +657,7 @@
       h.person || 'Unknown',
       h.reason || ''
     ]);
-    const csv = [header].concat(rows).map(r => r.map(csvEscape).join(',')).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'equipment-history-' + new Date().toISOString().slice(0,10) + '.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+    downloadCsv('equipment-history', header, rows);
   }
 
   const historyModal = document.getElementById('historyModal');
@@ -745,6 +876,49 @@
 
     card.appendChild(row);
     view.appendChild(card);
+
+    const overdueCard = document.createElement('div');
+    overdueCard.className = 'card';
+
+    const overdueRow = document.createElement('div');
+    overdueRow.className = 'row';
+
+    const overdueStack = document.createElement('div');
+    overdueStack.className = 'stack';
+    const overdueTitle = document.createElement('strong');
+    overdueTitle.textContent = 'Overdue flag';
+    const overdueDesc = document.createElement('span');
+    overdueDesc.style.fontSize = '12.5px';
+    overdueDesc.style.color = 'var(--ink-soft)';
+    overdueDesc.textContent = 'Highlight items on the Dashboard once they\'ve been checked out this long.';
+    overdueStack.appendChild(overdueTitle);
+    overdueStack.appendChild(overdueDesc);
+    overdueRow.appendChild(overdueStack);
+
+    const overdueInputWrap = document.createElement('div');
+    overdueInputWrap.style.display = 'flex';
+    overdueInputWrap.style.alignItems = 'center';
+    overdueInputWrap.style.gap = '6px';
+    overdueInputWrap.style.flexShrink = '0';
+    const overdueInput = document.createElement('input');
+    overdueInput.type = 'number';
+    overdueInput.min = '1';
+    overdueInput.style.width = '70px';
+    overdueInput.style.padding = '8px';
+    overdueInput.style.border = '1px solid var(--line)';
+    overdueInput.style.borderRadius = '8px';
+    overdueInput.value = settings.overdueHours || 24;
+    overdueInput.addEventListener('change', () => {
+      const hrs = Math.max(1, Number(overdueInput.value) || 24);
+      settingsRef.update({ overdueHours: hrs });
+      showToast('Overdue threshold set to ' + hrs + ' hours');
+    });
+    overdueInputWrap.appendChild(overdueInput);
+    overdueInputWrap.appendChild(document.createTextNode('hours'));
+    overdueRow.appendChild(overdueInputWrap);
+
+    overdueCard.appendChild(overdueRow);
+    view.appendChild(overdueCard);
   }
 
   // ---------------- Tabs ----------------
