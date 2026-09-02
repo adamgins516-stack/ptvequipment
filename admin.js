@@ -274,7 +274,7 @@
     [
       ['standard', 'Standard Paper (3/row)'],
       ['avery22807', 'Avery 22807 — 2" Round (12/sheet)'],
-      ['avery2160', 'Avery 2160 — Mini-Sheet (8/sheet)']
+      ['avery2160', 'Avery 2160 — 1" x 2⅝" (30/sheet)']
     ].forEach(([val, label]) => {
       const opt = document.createElement('option');
       opt.value = val; opt.textContent = label;

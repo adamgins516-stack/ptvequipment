@@ -14,17 +14,10 @@
 
   const notes = {
     standard: 'Prints on standard letter paper — 3 labels per row, cut along the dashed lines.',
-    avery22807: 'Sized for Avery 22807 (2" round, 12/sheet). Alignment is our best estimate from Avery\'s published label size — print one test page on plain paper first and check it against a blank sheet before printing on actual labels.',
-    avery2160: 'Sized for Avery 2160 Mini-Sheets (1" x 2-5/8", 8/sheet, on a 4.25" x 10" mini-sheet — not a full letter page). Your printer needs to be set to that custom paper size / fed via the manual tray. Print one test page on plain paper first and check alignment before using real labels.'
+    avery22807: 'Sized for Avery 22807 (2" round, 12/sheet). Alignment is our best estimate from Avery\'s published label size (they don\'t publish exact margins for this one) — print one test page on plain paper first and check it against a blank sheet before printing on actual labels. In the print dialog, set Margins to "None".',
+    avery2160: 'Sized for Avery 2160 (1" x 2-5/8", 30/sheet, standard letter page — same layout as Avery 5160/8160). In the print dialog, set Margins to "None" so this lines up correctly.'
   };
   noteEl.textContent = notes[sheetType] + (per > 1 ? ' Each label holds ' + per + ' items.' : '');
-
-  // Custom page size for the 2160 mini-sheet — everything else uses Letter.
-  if(sheetType === 'avery2160'){
-    const pageStyle = document.createElement('style');
-    pageStyle.textContent = '@page{ size:4.25in 10in; margin:0; }';
-    document.head.appendChild(pageStyle);
-  }
 
   document.getElementById('printBtn').addEventListener('click', () => window.print());
 
